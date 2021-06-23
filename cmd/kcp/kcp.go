@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -16,7 +13,6 @@ import (
 
 	"github.com/kcp-dev/kcp/pkg/cmd/help"
 	"github.com/kcp-dev/kcp/pkg/etcd"
-	"github.com/kcp-dev/kcp/pkg/reconciler/apiresource"
 	"github.com/kcp-dev/kcp/pkg/reconciler/cluster"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -31,12 +27,11 @@ import (
 )
 
 var (
-	syncerImage                         string
-	resourcesToSync                     []string
-	installClusterController            bool
-	pullMode, pushMode, autoPublishAPIs bool
-	listen                              string
-	etcdClientInfo                      etcd.ClientInfo
+	syncerImage              string
+	resourcesToSync          []string
+	installClusterController bool
+	pullMode, pushMode       bool
+	listen                   string
 )
 
 func main() {
@@ -93,7 +88,7 @@ func main() {
 			}
 			ctx := context.TODO()
 
-			runFunc := func(cfg etcd.ClientInfo) error {
+			return s.Run(func(cfg etcd.ClientInfo) error {
 				c, err := clientv3.New(clientv3.Config{
 					Endpoints: cfg.Endpoints,
 					TLS:       cfg.TLS,
@@ -180,7 +175,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							cluster.RegisterCRDs(logicalClusterConfig)
+							cluster.RegisterClusterCRD(logicalClusterConfig)
 						}
 						adminConfig, err := clientcmd.NewNonInteractiveClientConfig(clientConfig, "admin", &clientcmd.ConfigOverrides{}, nil).ClientConfig()
 						if err != nil {
@@ -208,7 +203,7 @@ func main() {
 							syncerMode = cluster.SyncerModePush
 						}
 
-						clientutils.EnableMultiCluster(adminConfig, nil, "clusters", "customresourcedefinitions", "apiresourceimports", "negotiatedapiresources")
+						clientutils.EnableMultiCluster(adminConfig, nil, "clusters", "customresourcedefinitions")
 						clusterController := cluster.NewController(
 							adminConfig,
 							syncerImage,
@@ -217,13 +212,6 @@ func main() {
 							syncerMode,
 						)
 						clusterController.Start(2)
-
-						apiresourceController := apiresource.NewController(
-							adminConfig,
-							autoPublishAPIs,
-						)
-						apiresourceController.Start(2)
-
 						return nil
 					})
 				}
@@ -231,58 +219,18 @@ func main() {
 				prepared := server.PrepareRun()
 
 				return prepared.Run(ctx.Done())
-			}
-
-			if len(etcdClientInfo.Endpoints) == 0 {
-				// No etcd servers specified so create one in-process:
-				return s.Run(runFunc)
-			}
-
-			etcdClientInfo.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
-
-			if len(etcdClientInfo.CertFile) > 0 && len(etcdClientInfo.KeyFile) > 0 {
-				cert, err := tls.LoadX509KeyPair(etcdClientInfo.CertFile, etcdClientInfo.KeyFile)
-				if err != nil {
-					return fmt.Errorf("failed to load x509 keypair: %s", err)
-				}
-				etcdClientInfo.TLS.Certificates = []tls.Certificate{cert}
-			}
-
-			if len(etcdClientInfo.TrustedCAFile) > 0 {
-				if caCert, err := ioutil.ReadFile(etcdClientInfo.TrustedCAFile); err != nil {
-					return fmt.Errorf("failed to read ca file: %s", err)
-				} else {
-					caPool := x509.NewCertPool()
-					caPool.AppendCertsFromPEM(caCert)
-					etcdClientInfo.TLS.RootCAs = caPool
-					etcdClientInfo.TLS.InsecureSkipVerify = false
-				}
-			}
-
-			return runFunc(etcdClientInfo)
+			})
 		},
 	}
 	startCmd.Flags().AddFlag(pflag.PFlagFromGoFlag(flag.CommandLine.Lookup("v")))
 	startCmd.Flags().StringVar(&syncerImage, "syncer_image", "quay.io/kcp-dev/kcp-syncer", "References a container image that contains syncer and will be used by the syncer POD in registered physical clusters.")
-	startCmd.Flags().StringArrayVar(&resourcesToSync, "resources_to_sync", []string{"pods", "deployments.apps"}, "Provides the list of resources that should be synced from KCP logical cluster to underlying physical clusters")
+	startCmd.Flags().StringArrayVar(&resourcesToSync, "resources_to_sync", []string{"pods", "deployments"}, "Provides the list of resources that should be synced from KCP logical cluster to underlying physical clusters")
 	startCmd.Flags().BoolVar(&installClusterController, "install_cluster_controller", false, "Registers the sample cluster custom resource, and the related controller to allow registering physical clusters")
 	startCmd.Flags().BoolVar(&pullMode, "pull_mode", false, "Deploy the syncer in registered physical clusters in POD, and have it sync resources from KCP")
 	startCmd.Flags().BoolVar(&pushMode, "push_mode", false, "If true, run syncer for each cluster from inside cluster controller")
 	startCmd.Flags().StringVar(&listen, "listen", ":6443", "Address:port to bind to")
-	startCmd.Flags().BoolVar(&autoPublishAPIs, "auto_publish_apis", false, "If true, the APIs imported from physical clusters will be published automatically as CRDs")
-
-	startCmd.Flags().StringSliceVar(&etcdClientInfo.Endpoints, "etcd-servers", etcdClientInfo.Endpoints,
-		"List of external etcd servers to connect with (scheme://ip:port), comma separated. If absent an in-process etcd will be created.")
-	startCmd.Flags().StringVar(&etcdClientInfo.KeyFile, "etcd-keyfile", etcdClientInfo.KeyFile,
-		"TLS key file used to secure etcd communication.")
-	startCmd.Flags().StringVar(&etcdClientInfo.CertFile, "etcd-certfile", etcdClientInfo.CertFile,
-		"TLS certification file used to secure etcd communication.")
-	startCmd.Flags().StringVar(&etcdClientInfo.TrustedCAFile, "etcd-cafile", etcdClientInfo.TrustedCAFile,
-		"TLS Certificate Authority file used to secure etcd communication.")
-
 	cmd.AddCommand(startCmd)
+
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}

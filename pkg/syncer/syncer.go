@@ -24,41 +24,6 @@ import (
 
 const resyncPeriod = 10 * time.Hour
 
-type Syncer struct {
-	specSyncer   *Controller
-	statusSyncer *Controller
-	Resources    sets.String
-}
-
-func (s *Syncer) Stop() {
-	s.specSyncer.Stop()
-	s.statusSyncer.Stop()
-}
-
-func (s *Syncer) WaitUntilDone() {
-	<-s.specSyncer.Done()
-	<-s.statusSyncer.Done()
-}
-
-func StartSyncer(upstream, downstream *rest.Config, resources sets.String, cluster string, numSyncerThreads int) (*Syncer, error) {
-	specSyncer, err := NewSpecSyncer(upstream, downstream, resources.List(), cluster)
-	if err != nil {
-		return nil, err
-	}
-	statusSyncer, err := NewStatusSyncer(downstream, upstream, resources.List(), cluster)
-	if err != nil {
-		specSyncer.Stop()
-		return nil, err
-	}
-	specSyncer.Start(numSyncerThreads)
-	statusSyncer.Start(numSyncerThreads)
-	return &Syncer{
-		specSyncer:   specSyncer,
-		statusSyncer: statusSyncer,
-		Resources:    resources,
-	}, nil
-}
-
 type UpsertFunc func(c *Controller, ctx context.Context, gvr schema.GroupVersionResource, namespace string, unstrob *unstructured.Unstructured) error
 type DeleteFunc func(c *Controller, ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) error
 type HandlersProvider func(c *Controller, gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs
@@ -159,24 +124,13 @@ func getAllGVRs(config *rest.Config, resourcesToSync ...string) ([]string, error
 		// v1 -> v1.
 		// apps/v1 -> v1.apps
 		// tekton.dev/v1beta1 -> v1beta1.tekton.dev
-		groupVersion, err := schema.ParseGroupVersion(r.GroupVersion)
-		if err != nil {
-			klog.Warningf("Unable to parse GroupVersion %s : %v", r.GroupVersion, err)
-			continue
+		parts := strings.SplitN(r.GroupVersion, "/", 2)
+		vr := parts[0] + "."
+		if len(parts) == 2 {
+			vr = parts[1] + "." + parts[0]
 		}
-		vr := groupVersion.Version + "." + groupVersion.Group
 		for _, ai := range r.APIResources {
-			var willBeSynced string
-			groupResource := schema.GroupResource{
-				Group: groupVersion.Group,
-				Resource: ai.Name,
-			}
-
-			if toSyncSet.Has(groupResource.String()) {
-				willBeSynced = groupResource.String()
-			} else if toSyncSet.Has(ai.Name) {
-				willBeSynced = ai.Name
-			} else {
+			if !toSyncSet.Has(ai.Name) {
 				// We're not interested in this resource type
 				continue
 			}
@@ -193,7 +147,7 @@ func getAllGVRs(config *rest.Config, resourcesToSync ...string) ([]string, error
 				continue
 			}
 			gvrstrs = append(gvrstrs, fmt.Sprintf("%s.%s", ai.Name, vr))
-			willBeSyncedSet.Insert(willBeSynced)
+			willBeSyncedSet.Insert(ai.Name)
 		}
 	}
 

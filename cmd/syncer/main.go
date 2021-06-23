@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/kcp-dev/kcp/pkg/syncer"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
@@ -28,7 +27,7 @@ func main() {
 	flag.Parse()
 	syncedResourceTypes := flag.Args()
 	if len(syncedResourceTypes) == 0 {
-		syncedResourceTypes = []string{"pods", "deployments.apps"}
+		syncedResourceTypes = []string{"pods", "deployments"}
 	}
 
 	// Create a client to dynamically watch "from".
@@ -65,12 +64,19 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	syncer, err := syncer.StartSyncer(fromConfig, toConfig, sets.NewString(syncedResourceTypes...), *clusterID, numThreads)
+	specSyncer, err := syncer.NewSpecSyncer(fromConfig, toConfig, syncedResourceTypes, *clusterID)
 	if err != nil {
 		klog.Fatal(err)
 	}
+	statusSyncer, err := syncer.NewStatusSyncer(fromConfig, toConfig, syncedResourceTypes, *clusterID)
+	if err != nil {
+		klog.Fatal(err)
+	}
+
+	specSyncer.Start(numThreads)
+	statusSyncer.Start(numThreads)
 	klog.Infoln("Starting workers")
-	
-	syncer.WaitUntilDone()
+	<-specSyncer.Done()
+	<-statusSyncer.Done()
 	klog.Infoln("Stopping workers")
 }

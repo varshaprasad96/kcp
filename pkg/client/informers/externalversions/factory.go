@@ -24,7 +24,6 @@ import (
 	time "time"
 
 	versioned "github.com/kcp-dev/kcp/pkg/client/clientset/versioned"
-	apiresource "github.com/kcp-dev/kcp/pkg/client/informers/externalversions/apiresource"
 	cluster "github.com/kcp-dev/kcp/pkg/client/informers/externalversions/cluster"
 	internalinterfaces "github.com/kcp-dev/kcp/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,12 +172,7 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Apiresource() apiresource.Interface
 	Cluster() cluster.Interface
-}
-
-func (f *sharedInformerFactory) Apiresource() apiresource.Interface {
-	return apiresource.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Cluster() cluster.Interface {

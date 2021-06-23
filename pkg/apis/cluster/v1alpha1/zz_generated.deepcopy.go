@@ -111,11 +111,6 @@ func (in *ClusterStatus) DeepCopyInto(out *ClusterStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.SyncedResources != nil {
-		in, out := &in.SyncedResources, &out.SyncedResources
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 
