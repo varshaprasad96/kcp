@@ -1,0 +1,7 @@
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIExport
+metadata:
+    name: cert-manager-stable
+spec:
+    latestResourceSchema:
+    - march.cowboys.wildwest.dev
