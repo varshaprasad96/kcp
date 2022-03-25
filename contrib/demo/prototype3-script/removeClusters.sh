@@ -26,3 +26,10 @@ DEMO_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "${DEMO_DIR}"/../.setupEnv
 
 kind delete clusters us-west1 us-east1 > /dev/null || true
+
+# delete private keys and certs created for cert-manager
+rm -rf ${DEMO_DIR}/ca.key
+rm -rf ${DEMO_DIR}/ca.crt
+
+# delete the temprory kubeconfig created to deploy cert-manager
+rm -rf ${DEMO_DIR}/cm.kubeconfig

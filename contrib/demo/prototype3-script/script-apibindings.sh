@@ -29,13 +29,24 @@ pe "kubectl apply -f ${DEMO_DIR}/apibinding/certificate-apiresourceschema.yaml"
 c "Now we export the API to make it available for users of the kcp service:"
 pe "cat ${DEMO_DIR}/apibinding/cert-manager-apiexport.yaml"
 pe "kubectl apply -f ${DEMO_DIR}/apibinding/cert-manager-apiexport.yaml"
-c "Note that it references our APIResourceSchema, more concretely the March version. In the future, we might want to have an April version and roll that out to customers."
+c "Note that it references our APIResourceSchema, more concretely today's version. In the future, we might want to have another version and roll that out to customers."
 
 c "Let's see the APIExport status:"
 pe "kubectl get apiexports"
 
+c "Let's also register a physical cluster, to make sure that the APIs we need are available."
+pe "kubectl apply -f contrib/demo/clusters/kind/us-east1.yaml"
+
+c "Let's apply the CRDs required by cert-manager:"
+pe "kubectl apply -f ${DEMO_DIR}/apibinding/cert-manager-crds.yaml"
+
+# Run cert-manager on a kind cluster. Is this to be exposed to users?
+cp ${KUBECONFIG} ${DEMO_DIR}/cm.kubeconfig
+sed -i 's/current-context:.*/current-context: system:admin/' cm.kubeconfig
+kubectl --kubeconfig=${CLUSTERS_DIR}/us-east1.kubeconfig ${DEMO_DIR}/apibinding/cert-manager-resources/cert-manager.yaml
+
 clear
-kubectl config use-config default
+kubectl config use-context default
 c "Now we swtich roles. We are the customer now, in need of certificate generation for our web application. We are lucky: kcp has a cert-manager service 🎉"
 pe "kubectl kcp workspace create webapp --use"
 
@@ -55,4 +66,21 @@ pe "kubectl api-resources"
 pe "kubectl get certificates"
 
 c "Note that this is much more than just a CRD: we have bound to the whole cert-manager service. So certificate requests will actually work 🎉"
-c "Let's request a serving cert for our web application:"
+c "Let's start by creating a private key for ca issuer. This step requires openssl to be installed locally"
+pe "openssl genrsa 2048 > ${DEMO_DIR}/ca.key"
+pe "openssl req -new -x509 -nodes -days 365000 \
+  -subj `"/C=US/ST=New York/L=New York City/O=Kubernetes/OU=KCP/CN=example.com/emailAddress=test@example.com"` \
+  -key ${DEMO_DIR}/ca.key \
+  -out ${DEMO_DIR}/ca.crt"
+
+c "Now let's start by creating a certificate and a Certificate Authority issuer in the webapp workspace."
+pe "kubectl apply -f ${DEMO_DIR}/apibinding/cert-manager-resources/cert-manager-test-resources.yaml"
+
+sleep 2
+
+c "Cert-manager should now be able to reconcile and create secret with the name `ca-cert-tls` as specified in the issuer."
+pe "kubectl get secret ca-cert-tls"
+
+c "Also, we can see that the certificate would now be in a ready condition with the secret generated from cert-manager."
+pe "kubectl get certificate serving-cert"
+
