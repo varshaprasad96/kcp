@@ -417,8 +417,9 @@ github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7V
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5/go.mod h1:7Id9E/uU8ce6rXgefFLlgrJj/GYY22cpxn+r32jIOes=
 github.com/karrick/godirwalk v1.16.1/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
-github.com/kcp-dev/apimachinery v0.0.0-20220401165523-9ea2c4e584ad h1:9GW0+0E/gJIsEynR2Ej333DRQ/HOG7R79hdmtSMjono=
 github.com/kcp-dev/apimachinery v0.0.0-20220401165523-9ea2c4e584ad/go.mod h1:kwfwvtcO3VGCK5hyzlPQCi0s2fYGlQAmKgkx5GKS5Uw=
+github.com/kcp-dev/apimachinery v0.0.0-20220426201016-6bc8451bd9df h1:Hp95LmsrKWb65Wi04Myr/ZqS/MJLlGuL2JY1XjhygMs=
+github.com/kcp-dev/apimachinery v0.0.0-20220426201016-6bc8451bd9df/go.mod h1:kwfwvtcO3VGCK5hyzlPQCi0s2fYGlQAmKgkx5GKS5Uw=
 github.com/kcp-dev/kubernetes v0.0.0-20220504154831-902041f0e10a h1:MQo7d+gkoZVgGOU34hdwsPv9Exz+QSPIllqjlJ9j5Gk=
 github.com/kcp-dev/kubernetes v0.0.0-20220504154831-902041f0e10a/go.mod h1:JrHA7M1VZSUmOvc0fK/0NskIpVbqlZAOXq7QlRnaT98=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20220504154831-902041f0e10a h1:ELwjW2w3sd81WZow1ZRturNgGn+CXudpusDwZwkx8K4=
