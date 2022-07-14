@@ -28,6 +28,7 @@ import (
 	kcpclienthelper "github.com/kcp-dev/apimachinery/pkg/client"
 	"github.com/kcp-dev/logicalcluster"
 
+	kcpdynamic "github.com/kcp-dev/apimachinery/pkg/dynamic"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -369,15 +370,21 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	if err != nil {
 		return err
 	}
-	kcpClusterClient, err := kcpclient.NewClusterForConfig(config)
+
+	crdWrappedClient, err := apiextensionsclient.NewForConfig(wrappedConfig)
 	if err != nil {
 		return err
 	}
 
-	crdClusterClient, err := apiextensionsclient.NewClusterForConfig(config)
-	if err != nil {
-		return err
-	}
+	// kcpClusterClient, err := kcpclient.NewClusterForConfig(config)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// crdClusterClient, err := apiextensionsclient.NewClusterForConfig(config)
+	// if err != nil {
+	// 	return err
+	// }
 
 	dynamicClusterClient, err := dynamic.NewClusterForConfig(config)
 	if err != nil {
@@ -385,7 +392,7 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	workspaceController, err := clusterworkspace.NewController(
-		kcpClusterClient,
+		kcpWrappedClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		s.rootKcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaceShards(),
 		s.kcpSharedInformerFactory.Apis().V1alpha1().APIBindings(),
@@ -395,7 +402,7 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	workspaceShardController, err := clusterworkspaceshard.NewController(
-		kcpClusterClient.Cluster(tenancyv1alpha1.RootCluster),
+		kcpWrappedClient,
 		s.rootKcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaceShards(),
 	)
 	if err != nil {
@@ -403,7 +410,7 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	workspaceTypeController, err := clusterworkspacetype.NewController(
-		kcpClusterClient,
+		kcpWrappedClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaceTypes(),
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaceShards(),
 	)
@@ -412,8 +419,9 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	organizationController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		kcpWrappedClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Organization"},
@@ -424,8 +432,9 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	teamController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		kcpWrappedClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Team"},
@@ -436,8 +445,9 @@ func (s *Server) installWorkspaceScheduler(ctx context.Context, config *rest.Con
 	}
 
 	universalController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		kcpWrappedClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Universal"},
@@ -474,24 +484,30 @@ func (s *Server) installHomeWorkspaces(ctx context.Context, config *rest.Config)
 		return err
 	}
 
+	crdWrappedClient, err := apiextensionsclient.NewForConfig(wrappedConfig)
+	if err != nil {
+		return err
+	}
+
 	// kcpClusterClient, err := kcpclient.NewClusterForConfig(config)
 	// if err != nil {
 	// 	return err
 	// }
 
-	crdClusterClient, err := apiextensionsclient.NewClusterForConfig(config)
-	if err != nil {
-		return err
-	}
+	// crdClusterClient, err := apiextensionsclient.NewClusterForConfig(config)
+	// if err != nil {
+	// 	return err
+	// }
 
-	dynamicClusterClient, err := dynamic.NewClusterForConfig(config)
+	dynamicClusterClient, err := kcpdynamic.NewClusterDynamicClientForConfig(wrappedConfig)
 	if err != nil {
 		return err
 	}
 
 	homerootController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		wrappedkcpClusterClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Homeroot"},
@@ -502,8 +518,9 @@ func (s *Server) installHomeWorkspaces(ctx context.Context, config *rest.Config)
 	}
 
 	homebucketController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		wrappedkcpClusterClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Homebucket"},
@@ -514,8 +531,9 @@ func (s *Server) installHomeWorkspaces(ctx context.Context, config *rest.Config)
 	}
 
 	homeController, err := bootstrap.NewController(
+		wrappedConfig,
 		dynamicClusterClient,
-		crdClusterClient,
+		crdWrappedClient,
 		wrappedkcpClusterClient,
 		s.kcpSharedInformerFactory.Tenancy().V1alpha1().ClusterWorkspaces(),
 		tenancyv1alpha1.ClusterWorkspaceTypeReference{Path: "root", Name: "Home"},

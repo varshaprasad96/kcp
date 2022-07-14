@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clusters"
 	"k8s.io/client-go/util/workqueue"
@@ -50,8 +51,9 @@ const (
 )
 
 func NewController(
+	config *rest.Config,
 	dynamicCLient dynamic.ClusterInterface,
-	crdClusterClient apiextensionclientset.ClusterInterface,
+	crdClusterClient apiextensionclientset.Interface,
 	kcpClusterClient kcpclient.Interface,
 	workspaceInformer tenancyinformer.ClusterWorkspaceInformer,
 	workspaceType tenancyv1alpha1.ClusterWorkspaceTypeReference,
@@ -61,6 +63,7 @@ func NewController(
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
 	c := &controller{
+		config:          config,
 		controllerName:  controllerName,
 		queue:           queue,
 		dynamicClient:   dynamicCLient,
@@ -86,11 +89,11 @@ func NewController(
 // state and bootstrap resources from the configs/<lower-case-type> package.
 type controller struct {
 	controllerName string
-
-	queue workqueue.RateLimitingInterface
+	config         *rest.Config
+	queue          workqueue.RateLimitingInterface
 
 	dynamicClient dynamic.ClusterInterface
-	crdClient     apiextensionclientset.ClusterInterface
+	crdClient     apiextensionclientset.Interface
 	kcpClient     kcpclient.Interface
 
 	workspaceLister tenancylister.ClusterWorkspaceLister

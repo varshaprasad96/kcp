@@ -51,7 +51,7 @@ const (
 )
 
 func NewController(
-	kcpClient kcpclient.ClusterInterface,
+	kcpClient kcpclient.Interface,
 	workspaceInformer tenancyinformer.ClusterWorkspaceInformer,
 	rootWorkspaceShardInformer tenancyinformer.ClusterWorkspaceShardInformer,
 	apiBindingsInformer apisinformer.APIBindingInformer,
@@ -108,7 +108,7 @@ func NewController(
 type Controller struct {
 	queue workqueue.RateLimitingInterface
 
-	kcpClient        kcpclient.ClusterInterface
+	kcpClient        kcpclient.Interface
 	workspaceIndexer cache.Indexer
 	workspaceLister  tenancylister.ClusterWorkspaceLister
 
@@ -284,7 +284,7 @@ func (c *Controller) patchIfNeeded(ctx context.Context, old, obj *tenancyv1alpha
 		subresources = []string{"status"}
 	}
 
-	_, err = c.kcpClient.Cluster(clusterName).TenancyV1alpha1().ClusterWorkspaces().Patch(ctx, obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, subresources...)
+	_, err = c.kcpClient.TenancyV1alpha1().ClusterWorkspaces().Patch(logicalcluster.WithCluster(ctx, clusterName), obj.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{}, subresources...)
 	if err != nil {
 		return fmt.Errorf("failed to patch ClusterWorkspace %s|%s: %w", clusterName, name, err)
 	}

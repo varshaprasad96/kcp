@@ -20,7 +20,9 @@ import (
 	"context"
 	"time"
 
+	kcpclienthelper "github.com/kcp-dev/apimachinery/pkg/client"
 	"github.com/kcp-dev/logicalcluster"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 
 	"k8s.io/klog/v2"
 
@@ -47,7 +49,13 @@ func (c *controller) reconcile(ctx context.Context, workspace *tenancyv1alpha1.C
 	klog.Infof("Bootstrapping resources for org workspace %s, logical cluster %s", workspace.Name, wsClusterName)
 	bootstrapCtx, cancel := context.WithDeadline(ctx, time.Now().Add(time.Second*30)) // to not block the controller
 	defer cancel()
-	if err := c.bootstrap(bootstrapCtx, c.crdClient.Cluster(wsClusterName).Discovery(), c.dynamicClient.Cluster(wsClusterName), c.kcpClient, wsClusterName); err != nil {
+
+	clusterConfig := kcpclienthelper.ConfigWithCluster(c.config, wsClusterName)
+	crdWsClient, err := clientset.NewForConfig(clusterConfig)
+	if err != nil {
+		return err
+	}
+	if err := c.bootstrap(bootstrapCtx, crdWsClient.Discovery(), c.dynamicClient.Cluster(wsClusterName), c.kcpClient, wsClusterName); err != nil {
 		return err // requeue
 	}
 
