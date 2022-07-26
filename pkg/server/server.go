@@ -43,6 +43,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/genericcontrolplane"
 
+	kcpclienthelper "github.com/kcp-dev/apimachinery/pkg/client"
 	configroot "github.com/kcp-dev/kcp/config/root"
 	configrootphase0 "github.com/kcp-dev/kcp/config/root-phase0"
 	configshard "github.com/kcp-dev/kcp/config/shard"
@@ -176,6 +177,14 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// wrappers
+	wrappedConfig := kcpclienthelper.NewClusterConfig(genericConfig.LoopbackClientConfig)
+	wrappedKubeclient, err := kubernetes.NewForConfig(wrappedConfig)
+	if err != nil {
+		return err
+	}
+
 	kubeClient := kubeClusterClient.Cluster(logicalcluster.Wildcard)
 	s.kubeSharedInformerFactory = coreexternalversions.NewSharedInformerFactoryWithOptions(
 		kubeClient,
@@ -270,7 +279,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	admissionPluginInitializers := []admission.PluginInitializer{
 		kcpadmissioninitializers.NewKcpInformersInitializer(s.kcpSharedInformerFactory),
-		kcpadmissioninitializers.NewKubeClusterClientInitializer(kubeClusterClient),
+		kcpadmissioninitializers.NewKubeClusterClientInitializer(wrappedKubeclient),
 		kcpadmissioninitializers.NewKcpClusterClientInitializer(kcpClusterClient),
 		kcpadmissioninitializers.NewShardBaseURLInitializer(s.options.Extra.ShardBaseURL),
 		kcpadmissioninitializers.NewShardExternalURLInitializer(s.options.Extra.ShardExternalURL),

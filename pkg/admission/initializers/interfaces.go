@@ -32,7 +32,7 @@ type WantsKcpInformers interface {
 // WantsKubeClusterClient interface should be implemented by admission plugins
 // that want to have a kube cluster client injected.
 type WantsKubeClusterClient interface {
-	SetKubeClusterClient(kubeClusterClient *kubernetes.Cluster)
+	SetKubeClusterClient(kubeClusterClient kubernetes.Interface)
 }
 
 // WantsKcpClusterClient interface should be implemented by admission plugins
